@@ -20,3 +20,4 @@ venv/
 brain/
 tmp/
 *.log
+src/legacy/

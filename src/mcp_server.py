@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 
 # Setup paths
 sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent.parent / "simplified_mem"))
+# sys.path.insert(0, str(Path(__file__).parent.parent / "simplified_mem")) # REMOVED
 
 # Import RAG capability
 from database.vector_store import VectorStore

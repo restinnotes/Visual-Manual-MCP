@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 # 添加 simplified_mem 到路径以导入 config
-sys.path.insert(0, str(Path(__file__).parent.parent / "simplified_mem"))
+# sys.path.insert(0, str(Path(__file__).parent.parent / "simplified_mem")) # REMOVED
 
 from openai import OpenAI
 

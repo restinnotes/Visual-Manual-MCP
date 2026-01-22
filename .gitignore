@@ -1,0 +1,22 @@
+# Data directories
+lancedb_data/
+multimodal_data/
+knowledge_base/
+atomized_data/
+
+# Python noise
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+.venv/
+
+# PDF files (optional, but keep repo clean)
+*.pdf
+
+# Internal/Temp
+.gemini/
+brain/
+tmp/
+*.log

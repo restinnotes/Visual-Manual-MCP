@@ -1,0 +1,24 @@
+# Task List
+
+- [x] Research `simplemem` repository
+    - [x] Identify core features: source attribution, knowledge extraction, active querying.
+    - [x] Check license and dependencies.
+- [x] Research `bhy2cli` repository (Test Data)
+    - [x] Locate the repository.
+    - [x] Understand the codebase structure for ingestion.
+- [x] Designs MCP Server Architecture for SimpleMem
+    - [x] Define MCP tools (e.g., `add_memory`, `query_memory`).
+    - [x] Design the "Ask User" fallback mechanism.
+- [/] Implement SimpleMem MCP Server
+    - [x] Setup environment.
+    - [x] Wrap SimpleMem functionality.
+    - [x] Implement MCP protocol (likely via stdio or SSE).
+- [/] Phase 4: Markdown Atomization & Graph Injection
+    - [ ] Create `MarkdownAtomizer` (`src/atomizer.py`)
+        - [ ] Implement semantic chunking.
+        - [ ] Implement coreference resolution & proposition splitting.
+        - [ ] Implement relation extraction.
+    - [ ] Create `IngestionPipeline` (`src/ingest_markdown.py`)
+        - [ ] Connect Read -> Atomize -> Embed -> Store.
+    - [ ] Verify with `bhy2cli` (Section 2.2.2)
+        - [ ] Validate atomized output and relationships.

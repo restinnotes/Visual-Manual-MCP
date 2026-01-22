@@ -84,8 +84,14 @@ STRUCTURED_TOP_K = 5
 # Database Configuration
 # ============================================================================
 
-# Path to LanceDB storage
-LANCEDB_PATH = "./lancedb_data"
+import os
+from pathlib import Path
+
+# Resolve project root (parent of 'src' directory where this config.py resides)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Path to LanceDB storage (Absolute Path)
+LANCEDB_PATH = str(PROJECT_ROOT / "lancedb_data")
 
 # Memory table name
 MEMORY_TABLE_NAME = "memory_entries"

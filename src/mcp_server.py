@@ -56,22 +56,43 @@ class SimpleMemMCPServer:
 
     async def run(self):
         """Standard IO Loop for MCP"""
-        # This is a minimal raw implementation of MCP protocol over Stdio
-        # In a real scenario, we'd use `mcp` python package if available
-        # But this ensures zero-dependency compatibility for now if mcp is not installed
+        # Minimal MCP protocol implementation over Stdio
 
-        # Handshake
-        # Start read loop
+        # Robust Input Reading for Windows (Threads instead of async pipes)
+        # This avoids WinError 6 (Proactor) and NotImplementedError (Selector)
+        loop = asyncio.get_running_loop()
         reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(reader)
-        await asyncio.get_running_loop().connect_read_pipe(lambda: protocol, sys.stdin)
-        w_transport, w_protocol = await asyncio.get_running_loop().connect_write_pipe(asyncio.streams.FlowControlMixin, sys.stdout)
-        writer = asyncio.StreamWriter(w_transport, w_protocol, reader, asyncio.get_running_loop())
+
+        def reading_thread():
+            """Reads stdin in a separate thread and feeds the async reader"""
+            try:
+                while True:
+                    # buffer.readline gives raw bytes, safer than text wrapper
+                    line = sys.stdin.buffer.readline()
+                    if not line:
+                        break
+                    loop.call_soon_threadsafe(reader.feed_data, line)
+                loop.call_soon_threadsafe(reader.feed_eof)
+            except Exception as e:
+                print(f"[TCP Error] Reading thread failed: {e}", file=sys.stderr)
+                loop.call_soon_threadsafe(reader.feed_eof)
+
+        # Start input thread
+        import threading
+        t = threading.Thread(target=reading_thread, daemon=True)
+        t.start()
+
+        # Setup Output
+        # Use stdout directly or via wrapper.
+        # For simplicity and robustness, we just write to sys.stdout.buffer
 
         async for line in reader:
             try:
-                msg = json.loads(line)
-                if not msg: continue
+                 # line is bytes
+                msg_str = line.decode('utf-8').strip()
+                if not msg_str: continue
+
+                msg = json.loads(msg_str)
 
                 # Handle Initialize
                 if msg.get("method") == "initialize":
@@ -89,8 +110,7 @@ class SimpleMemMCPServer:
                             }
                         }
                     }
-                    writer.write(json.dumps(response).encode() + b"\n")
-                    await writer.drain()
+                    self._send_json(response)
 
                 # Handle Tools List
                 elif msg.get("method") == "tools/list":
@@ -116,8 +136,7 @@ class SimpleMemMCPServer:
                             ]
                         }
                     }
-                    writer.write(json.dumps(response).encode() + b"\n")
-                    await writer.drain()
+                    self._send_json(response)
 
                 # Handle Tool Call
                 elif msg.get("method") == "tools/call":
@@ -137,11 +156,6 @@ class SimpleMemMCPServer:
                             text_block = f"Source: {item['source']} (Section {item['section']})\nContent: {item['content']}\nImage Ref: {item['image_path']}"
                             content.append({"type": "text", "text": text_block})
 
-                            # Ideally we send image as integrated resource or embedded?
-                            # For now, text reference as requested.
-                            # "The specific ability to look at the picture is left to the web-end agent"
-                            # So just returning the path is correct.
-
                         response = {
                             "jsonrpc": "2.0",
                             "id": req_id,
@@ -149,27 +163,38 @@ class SimpleMemMCPServer:
                                 "content": content
                             }
                         }
-                        writer.write(json.dumps(response).encode() + b"\n")
-                        await writer.drain()
+                        self._send_json(response)
                     else:
                         # Unknown tool
-                         writer.write(json.dumps({
+                         self._send_json({
                             "jsonrpc": "2.0",
                             "id": req_id,
                             "error": {"code": -32601, "message": "Method not found"}
-                        }).encode() + b"\n")
-                         await writer.drain()
+                        })
 
                 # Handle Ping/Other
                 elif msg.get("method") == "ping":
-                     writer.write(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": {}}).encode() + b"\n")
-                     await writer.drain()
+                     self._send_json({"jsonrpc": "2.0", "id": msg["id"], "result": {}})
 
             except Exception as e:
                 # Log error to stderr (don't corrupt stdout JSON-RPC)
                 print(f"[MCP Error] {e}", file=sys.stderr)
 
+    def _send_json(self, data: dict):
+        """Write JSON response to stdout safely"""
+        try:
+            json_str = json.dumps(data)
+            # Write bytes to stdout buffer to avoid encoding issues
+            sys.stdout.buffer.write(json_str.encode('utf-8') + b"\n")
+            sys.stdout.buffer.flush()
+        except Exception as e:
+            print(f"[MCP Write Error] {e}", file=sys.stderr)
+
 if __name__ == "__main__":
+    # Remove previous Windows-specific loop policy fix as we are now using threads
+    # Debug: Print absolute path of DB
+    print(f"[INFO] Using LanceDB path: {os.path.abspath(global_config.LANCEDB_PATH)}", file=sys.stderr)
+
     server = SimpleMemMCPServer()
     try:
         asyncio.run(server.run())
